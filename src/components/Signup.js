@@ -10,6 +10,7 @@ const Signup = () => {
     confirmPassword: ''
   });
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
   const { signup } = useAuth();
   const navigate = useNavigate();
 
@@ -21,10 +22,33 @@ const Signup = () => {
     }));
   };
 
+  const validateUsername = (username) => /^[a-zA-Z0-9_]{3,16}$/.test(username); // 3-16 characters, alphanumeric or underscores.
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validatePassword = (password) =>
+    password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password) && /[\W]/.test(password);
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setSuccess(false);
 
+    if (!validateUsername(formData.username)) {
+      setError('Username must be 3-16 characters long and contain only letters, numbers, or underscores.');
+      return;
+    }
+
+    if (!validateEmail(formData.email)) {
+      setError('Invalid email format.');
+      return;
+    }
+
+    if (!validatePassword(formData.password)) {
+      setError(
+        'Password must be at least 8 characters long and include an uppercase letter, a number, and a special character.'
+      );
+      return;
+    }
+    
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -32,6 +56,7 @@ const Signup = () => {
 
     try {
       await signup(formData.username, formData.email, formData.password);
+      setSuccess(true);
       navigate('/login');
     } catch (err) {
       setError(err.response?.data?.message || 'An error occurred during registration');
