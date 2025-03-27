@@ -10,6 +10,9 @@ const Login = () => {
   const [error, setError] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+  
+  const validateUsername = (username) => /^[a-zA-Z0-9_]{3,16}$/.test(username); // Alphanumeric, underscores, 3-16 characters.
+  const validatePassword = (password) => password.length >= 8; // At least 8 characters.
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -19,19 +22,30 @@ const Login = () => {
     }));
   };
 
+  // added input validation
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!validateUsername(formData.username)) {
+      setError('Username must be 3-16 characters long and contain only letters, numbers, or underscores.');
+      return;
+    }
+
+    if (!validatePassword(formData.password)) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
 
     try {
       const success = await login(formData.username, formData.password);
       if (success) {
         navigate('/blogs');
       } else {
-        setError('Invalid username or password');
+        setError('Invalid username or password.');
       }
     } catch (err) {
-      setError('An error occurred during login');
+      setError('An error occurred during login.');
     }
   };
 
