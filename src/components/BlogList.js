@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
+import RecommendedPosts from './RecommendedPosts';
 
 const BlogList = () => {
   const { user } = useAuth();
   const [posts, setPosts] = useState([]);
+  const [recommendedPosts, setRecommendedPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [searchParams] = useSearchParams();
   const category = searchParams.get('category') || 'all';
   const [message, setMessage] = useState('');
-  const [totalPosts, setTotalPosts] = useState(0);
-  const [showingPosts, setShowingPosts] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [showing, setShowing] = useState(0);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const categories = [
     { name: 'All', value: 'all' },
@@ -23,53 +26,123 @@ const BlogList = () => {
     { name: 'Literature', value: 'LITERATURE' }
   ];
 
-  useEffect(() => {
-    const fetchPosts = async () => {
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const token = user ? localStorage.getItem('token') : null;
+      
+      const response = await axios.get('http://localhost:8080/api/posts', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        params: {
+          category: category === 'all' ? null : category
+        }
+      });
+      
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+
+      const { blogs, message, total, showing } = response.data;
+      const postsArray = Array.isArray(blogs) ? blogs : [];
+      setPosts(postsArray);
+      setMessage(message || '');
+      setTotal(total || 0);
+      setShowing(showing || 0);
+      setError('');
+    } catch (err) {
+      console.error('Error fetching posts:', err);
+      setError(
+        err.response?.data?.message || 
+        err.message || 
+        'Failed to fetch posts. Please try again later.'
+      );
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRecommendedPosts = async () => {
+    if (user) {
       try {
-        setLoading(true);
-        setError('');
-        
-        // Get the token if user is logged in
-        const token = user ? localStorage.getItem('token') : null;
-        
-        const response = await axios.get('http://localhost:8080/api/v1/posts', {
+        const response = await axios.get('http://localhost:8080/api/posts/recommended', {
           headers: {
-            'Content-Type': 'application/json',
-            ...(token && { 'Authorization': `Bearer ${token}` })
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
           }
         });
-        
-        if (!response.data) {
-          throw new Error('No data received from server');
+        if (response.data) {
+          setRecommendedPosts(response.data);
         }
-
-        const { blogs, message, total, showing } = response.data;
-        let filteredPosts = blogs;
-        
-        if (category !== 'all') {
-          filteredPosts = blogs.filter(post => post.category === category);
-        }
-        
-        setPosts(Array.isArray(filteredPosts) ? filteredPosts : []);
-        setMessage(message || '');
-        setTotalPosts(total || 0);
-        setShowingPosts(showing || 0);
-        setError('');
-      } catch (err) {
-        console.error('Error fetching posts:', err);
-        setError(
-          err.response?.data?.message || 
-          err.message || 
-          'Failed to fetch posts. Please try again later.'
-        );
-        setPosts([]);
-      } finally {
-        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching recommended posts:', error);
       }
-    };
+    }
+  };
 
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+  };
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+  };
+
+  const handleCategoryChange = (e) => {
+    fetchPosts(e.target.value);
+  };
+
+  useEffect(() => {
     fetchPosts();
+    fetchRecommendedPosts();
   }, [category, user]);
+
+  const renderPosts = (postsToRender, title) => (
+    <div className="mb-12">
+      <h2 className="text-2xl font-bold text-[#61dafb] mb-6">
+        {title} {postsToRender.length > 0 && `(${postsToRender.length})`}
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {postsToRender.map((post) => (
+          <div key={post.id} className="bg-[#1a1a1a] rounded-lg shadow-xl overflow-hidden border border-gray-700 hover:border-[#61dafb] transition-all duration-300">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <span className="px-3 py-1 bg-[#121212] text-[#61dafb] border border-[#61dafb]/20 rounded-full text-sm font-medium">
+                  {post.category}
+                </span>
+                <span className="text-sm text-gray-400">
+                  {new Date(post.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <Link to={`/blogs/${post.id}`} className="block group">
+                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-[#61dafb] transition-colors duration-200">
+                  {post.title}
+                </h3>
+                <p className="text-gray-300 mb-4 line-clamp-2">
+                  {post.description}
+                </p>
+              </Link>
+              <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-700">
+                <span className="text-sm text-gray-400">
+                  By {post.author?.username}
+                </span>
+                <Link
+                  to={`/blogs/${post.id}`}
+                  className="inline-flex items-center px-4 py-2 border border-[#61dafb] text-sm font-medium rounded-md text-[#61dafb] bg-[#121212] hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
+                >
+                  Read More
+                </Link>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 
   if (loading) {
     return (
@@ -81,17 +154,21 @@ const BlogList = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="sm:flex sm:items-center sm:justify-between mb-8">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Educational Blog Posts</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Explore our collection of educational content
-          </p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-2xl font-bold leading-7 text-[#61dafb] sm:text-3xl sm:truncate">
+            Educational Blog Posts
+          </h2>
+          <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:mt-0 sm:space-x-6">
+            <div className="mt-2 flex items-center text-sm text-gray-300">
+              {total} total posts • Showing {showing} posts
+            </div>
+          </div>
         </div>
         {user && (
           <Link
             to="/blogs/create"
-            className="mt-4 sm:mt-0 inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            className="mt-4 md:mt-0 px-6 py-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200 whitespace-nowrap"
           >
             Create New Post
           </Link>
@@ -99,117 +176,69 @@ const BlogList = () => {
       </div>
 
       <div className="mb-8">
-        <div className="flex flex-wrap gap-2">
-          {categories.map((cat) => (
-            <Link
-              key={cat.value}
-              to={cat.value === 'all' ? '/blogs' : `/blogs?category=${cat.value}`}
-              className={`px-4 py-2 rounded-full text-sm font-medium ${
-                category === cat.value
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-gray-100 text-gray-800 hover:bg-gray-200'
-              }`}
-            >
-              {cat.name}
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {message && (
-        <div className="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6">
-          <p className="text-sm text-blue-700">
-            {message} {totalPosts > showingPosts && `(Showing ${showingPosts} of ${totalPosts} posts)`}
-          </p>
-        </div>
-      )}
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {posts.map((post) => (
-          <div
-            key={post.id}
-            className="bg-white overflow-hidden shadow rounded-lg hover:shadow-lg transition-shadow duration-300"
+        <form onSubmit={handleSearchSubmit} className="flex gap-4 mb-4">
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={handleSearchChange}
+            placeholder="Search posts..."
+            className="flex-1 px-4 py-2 rounded-md bg-[#121212] border border-[#61dafb]/20 text-gray-300 focus:outline-none focus:border-[#61dafb]"
+          />
+          <button
+            type="submit"
+            className="px-6 py-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
           >
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium text-indigo-600">
-                  {post.category}
-                </span>
-                <span className="text-sm text-gray-500">
-                  {new Date(post.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <Link to={`/blogs/${post.id}`}>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2 hover:text-indigo-600">
-                  {post.title}
-                </h3>
-              </Link>
-              <p className="text-gray-600 line-clamp-3 mb-4">
-                {post.description}
-              </p>
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-gray-500">
-                  By {post.author?.username || 'Anonymous'}
-                </div>
-                <Link
-                  to={user ? `/blogs/${post.id}` : '/login'}
-                  className="text-sm font-medium text-indigo-600 hover:text-indigo-500"
-                >
-                  Read more →
-                </Link>
-              </div>
-            </div>
-          </div>
-        ))}
+            Search
+          </button>
+          <select
+            value={category}
+            onChange={handleCategoryChange}
+            className="px-4 py-2 bg-[#121212] text-[#61dafb] border border-[#61dafb]/20 rounded-md focus:outline-none focus:border-[#61dafb]"
+          >
+            {categories.map((cat) => (
+              <option key={cat.value} value={cat.value}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+        </form>
       </div>
 
-      {posts.length === 0 && !error && (
-        <div className="text-center py-10">
-          <p className="text-gray-500 text-lg">
-            {category === 'all'
-              ? 'No posts available yet.'
-              : `No posts found in the ${category.toLowerCase()} category.`}
+      {/* Recommended Posts Section */}
+      {user && recommendedPosts.length > 0 && renderPosts(recommendedPosts, "Recommended for You")}
+
+      {!user && (
+        <div className="bg-[#1a1a1a] border border-[#61dafb]/20 rounded-md p-4 mb-8 text-center">
+          <p className="text-gray-300">
+            Please{' '}
+            <Link to="/login" className="text-[#61dafb] hover:text-[#61dafb]/80">
+              log in
+            </Link>{' '}
+            to see all posts and get personalized recommendations
           </p>
-          {user && (
-            <Link
-              to="/blogs/create"
-              className="mt-4 inline-flex items-center text-indigo-600 hover:text-indigo-500"
-            >
-              Create the first post →
-            </Link>
-          )}
         </div>
       )}
 
-      {!user && posts.length === 0 && !error && (
-        <div className="text-center mt-8">
-          <p className="text-gray-600">
-            <Link to="/login" className="text-indigo-600 hover:text-indigo-500">
-              Log in
-            </Link>{' '}
-            or{' '}
-            <Link to="/signup" className="text-indigo-600 hover:text-indigo-500">
-              sign up
-            </Link>{' '}
-            to create your own posts!
-          </p>
-        </div>
-      )}
+      {/* All Posts Section */}
+      <div>
+        <h2 className="text-2xl font-bold text-[#61dafb] mb-6">All Posts</h2>
+        
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#61dafb]"></div>
+          </div>
+        ) : error ? (
+          <div className="bg-[#1a1a1a] border-l-4 border-red-400 p-4">
+            <p className="text-red-400">{error}</p>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-400 text-lg">No posts found.</p>
+          </div>
+        ) : (
+          renderPosts(posts, "All Posts")
+        )}
+      </div>
     </div>
   );
 };

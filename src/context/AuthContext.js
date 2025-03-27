@@ -7,26 +7,52 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    // Check if there's a token in localStorage and validate it
-    const token = localStorage.getItem('token');
-    if (token) {
-      axios.get('http://localhost:8080/api/auth/validate', {
+  const validateToken = async (token) => {
+    try {
+      const response = await axios.post('http://localhost:8080/api/auth/validate', null, {
         headers: { Authorization: `Bearer ${token}` }
-      })
-      .then(response => {
-        setUser(response.data);
-      })
-      .catch(() => {
-        localStorage.removeItem('token');
-        setUser(null);
-      })
-      .finally(() => {
-        setLoading(false);
       });
-    } else {
-      setLoading(false);
+      return response.data;
+    } catch (error) {
+      console.error('Token validation failed:', error);
+      throw error;
     }
+  };
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const token = localStorage.getItem('token');
+      if (token) {
+        try {
+          const userData = await validateToken(token);
+          setUser(userData);
+        } catch (error) {
+          console.error('Auth initialization failed:', error);
+          localStorage.removeItem('token');
+          setUser(null);
+        }
+      }
+      setLoading(false);
+    };
+
+    initializeAuth();
+  }, []);
+
+  // Set up axios interceptor for token handling
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      async (error) => {
+        if (error.response?.status === 401) {
+          // Token expired or invalid
+          localStorage.removeItem('token');
+          setUser(null);
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    return () => axios.interceptors.response.eject(interceptor);
   }, []);
 
   const login = async (username, password) => {
@@ -66,7 +92,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#61dafb]"></div>
+      </div>
+    );
   }
 
   return (

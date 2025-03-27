@@ -1,144 +1,156 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '../context/AuthContext';
 
 const CreatePost = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [formData, setFormData] = useState({
     title: '',
+    category: '',
     description: '',
     content: '',
-    category: 'GENERAL'
+    imageUrl: ''
   });
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  const categories = ['GENERAL', 'MATHEMATICS', 'SCIENCE', 'PROGRAMMING', 'HISTORY', 'LITERATURE'];
+  const categories = [
+    { name: 'Select a category', value: '' },
+    { name: 'Mathematics', value: 'MATHEMATICS' },
+    { name: 'Science', value: 'SCIENCE' },
+    { name: 'Programming', value: 'PROGRAMMING' },
+    { name: 'History', value: 'HISTORY' },
+    { name: 'Literature', value: 'LITERATURE' }
+  ];
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:8080/api/posts', formData, {
+      const response = await axios.post('http://localhost:8080/api/posts', formData, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         }
       });
       navigate('/blogs');
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to create post');
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Create New Post</h2>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-[#1a1a1a] rounded-lg shadow-xl p-6 border border-gray-700">
+        <h1 className="text-3xl font-bold text-[#61dafb] mb-6">Create New Post</h1>
+        
+        {error && (
+          <div className="mb-6 p-4 bg-[#121212] border-l-4 border-red-500 text-red-500">
+            {error}
+          </div>
+        )}
 
-          {error && (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-              <p className="text-red-700">{error}</p>
-            </div>
-          )}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label htmlFor="title" className="block text-sm font-medium text-[#61dafb] mb-2">
+              Title
+            </label>
+            <input
+              type="text"
+              id="title"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 bg-[#121212] border border-gray-700 rounded-md text-gray-300 focus:outline-none focus:border-[#61dafb]"
+              placeholder="Enter post title"
+            />
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700">
-                Title
-              </label>
-              <input
-                type="text"
-                id="title"
-                name="title"
-                value={formData.title}
-                onChange={handleChange}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+          <div>
+            <label htmlFor="category" className="block text-sm font-medium text-[#61dafb] mb-2">
+              Category
+            </label>
+            <select
+              id="category"
+              name="category"
+              value={formData.category}
+              onChange={handleChange}
+              required
+              className="w-full px-4 py-2 bg-[#121212] border border-gray-700 rounded-md text-gray-300 focus:outline-none focus:border-[#61dafb]"
+            >
+              {categories.map((category) => (
+                <option key={category.value} value={category.value} className="bg-[#121212]">
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
 
-            <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                Category
-              </label>
-              <select
-                id="category"
-                name="category"
-                value={formData.category}
-                onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              >
-                {categories.map(category => (
-                  <option key={category} value={category}>
-                    {category}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-[#61dafb] mb-2">
+              Description
+            </label>
+            <textarea
+              id="description"
+              name="description"
+              value={formData.description}
+              onChange={handleChange}
+              required
+              rows="3"
+              className="w-full px-4 py-2 bg-[#121212] border border-gray-700 rounded-md text-gray-300 focus:outline-none focus:border-[#61dafb]"
+              placeholder="Enter a brief description"
+            ></textarea>
+          </div>
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+          <div>
+            <label htmlFor="content" className="block text-sm font-medium text-[#61dafb] mb-2">
+              Content
+            </label>
+            <textarea
+              id="content"
+              name="content"
+              value={formData.content}
+              onChange={handleChange}
+              required
+              rows="10"
+              className="w-full px-4 py-2 bg-[#121212] border border-gray-700 rounded-md text-gray-300 focus:outline-none focus:border-[#61dafb]"
+              placeholder="Write your post content here"
+            ></textarea>
+          </div>
 
-            <div>
-              <label htmlFor="content" className="block text-sm font-medium text-gray-700">
-                Content
-              </label>
-              <textarea
-                id="content"
-                name="content"
-                value={formData.content}
-                onChange={handleChange}
-                rows={8}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-              />
-            </div>
+          {/* <div>
+            <label htmlFor="imageUrl" className="block text-sm font-medium text-[#61dafb] mb-2">
+              Image URL (Optional)
+            </label>
+            <input
+              type="url"
+              id="imageUrl"
+              name="imageUrl"
+              value={formData.imageUrl}
+              onChange={handleChange}
+              className="w-full px-4 py-2 bg-[#121212] border border-gray-700 rounded-md text-gray-300 focus:outline-none focus:border-[#61dafb]"
+              placeholder="Enter image URL"
+            />
+          </div> */}
 
-            <div className="flex justify-end space-x-3">
-              <button
-                type="button"
-                onClick={() => navigate('/blogs')}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${loading ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                {loading ? 'Creating...' : 'Create Post'}
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              className="px-6 py-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
+            >
+              Create Post
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );
