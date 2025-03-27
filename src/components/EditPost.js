@@ -1,43 +1,55 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import axios from 'axios';
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import axios from "axios";
+import Quill from "quill";
+import "quill/dist/quill.snow.css"; // Import Quill CSS
+import { marked } from "marked"; // Import marked for Markdown-to-HTML conversion
 
 const EditPost = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const quillRef = useRef(null); // Reference to hold the editor instance
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    content: '',
-    category: '',
-    imageUrl: ''
+    title: "",
+    category: "GENERAL",
+    content: "", // This will hold the Markdown string
   });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const categories = ['MATHEMATICS', 'SCIENCE', 'PROGRAMMING', 'HISTORY', 'LITERATURE'];
-
+  const categories = ["GENERAL", "MATHEMATICS", "SCIENCE", "PROGRAMMING", "HISTORY", "LITERATURE"];
+  
+  // Fetch post data
   useEffect(() => {
     const fetchPost = async () => {
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem("token");
         const response = await axios.get(`http://localhost:8080/api/posts/${id}`, {
           headers: {
-            'Authorization': `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         });
         const post = response.data;
+
+        // Update formData
         setFormData({
-          title: post.title || '',
-          description: post.description || '',
-          content: post.content || '',
-          category: post.category || 'MATHEMATICS',
-          imageUrl: post.imageUrl || ''
+          title: post.title,
+          category: post.category,
+          content: post.content, // Markdown string
         });
+
+        // Convert Markdown to HTML and set it in Quill editor
+        const htmlContent = marked(post.content); // Convert Markdown to HTML
+        if (quillRef.current && quillRef.current.__quill) {
+          const editor = quillRef.current.__quill; // Access Quill instance
+          editor.clipboard.dangerouslyPasteHTML(htmlContent); // Set HTML content
+        }
+
         setLoading(false);
       } catch (err) {
-        console.error('Error fetching post:', err);
-        setError('Failed to fetch post. Please try again.');
+        console.error("Error fetching post:", err);
+        setError("Failed to fetch post");
         setLoading(false);
       }
     };
@@ -45,56 +57,98 @@ const EditPost = () => {
     fetchPost();
   }, [id]);
 
+  const initializeQuill = (ref) => {
+    if (ref && !ref.__quill) { // Check if Quill is not already initialized
+      const editor = new Quill(ref, {
+        theme: "snow",
+        modules: {
+          toolbar: [
+            ["bold", "italic", "underline"], // Formatting buttons
+            [{ header: [1, 2, 3, false] }],  // Header options
+            [{ list: "ordered" }, { list: "bullet" }], // Lists
+            ["image"], // Image uploader
+          ],
+        },
+      });
+
+      // Store the Quill instance in the ref
+      ref.__quill = editor;
+
+      // Handle image uploads
+      editor.getModule("toolbar").addHandler("image", () => {
+        const input = document.createElement("input");
+        input.setAttribute("type", "file");
+        input.setAttribute("accept", "image/*");
+        input.onchange = async () => {
+          const file = input.files[0];
+          const reader = new FileReader();
+          reader.onload = () => {
+            const base64 = reader.result;
+            const range = editor.getSelection();
+            editor.insertEmbed(range.index, "image", base64); // Insert base64 image
+          };
+          reader.readAsDataURL(file);
+        };
+        input.click();
+      });
+    }
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setLoading(true);
+    setError("");
 
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:8080/api/posts/${id}`, formData, {
+      const editor = quillRef.current.__quill; // Access Quill instance
+      const htmlContent = editor.root.innerHTML; // Extract HTML content from Quill
+
+      const token = localStorage.getItem("token");
+
+      // Combine formData with HTML content
+      const postData = {
+        ...formData,
+        content: htmlContent, // Send HTML content as a string
+      };
+
+      await axios.put(`http://localhost:8080/api/posts/${id}`, postData, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
-      navigate('/dashboard/posts');
+
+      navigate("/blogs");
     } catch (err) {
-      console.error('Error updating post:', err);
-      setError(err.response?.data?.message || 'Failed to update post. Please try again.');
+      setError(err.response?.data?.message || "Failed to update post");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#61dafb]"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-[#1a1a1a] rounded-lg shadow-xl border border-gray-700">
+      <div className="bg-white shadow rounded-lg">
         <div className="px-6 py-8">
-          <h2 className="text-2xl font-bold text-[#61dafb] mb-6">Edit Post</h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Post</h2>
 
           {error && (
-            <div className="mb-6 p-4 bg-[#121212] border-l-4 border-red-500 text-red-500">
-              {error}
+            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+              <p className="text-red-700">{error}</p>
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-[#61dafb]">
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700">
                 Title
               </label>
               <input
@@ -104,12 +158,12 @@ const EditPost = () => {
                 value={formData.title}
                 onChange={handleChange}
                 required
-                className="mt-1 block w-full px-4 py-2 rounded-md bg-[#121212] border border-gray-700 text-gray-300 focus:outline-none focus:border-[#61dafb] focus:ring-1 focus:ring-[#61dafb]"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               />
             </div>
 
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-[#61dafb]">
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
                 Category
               </label>
               <select
@@ -117,9 +171,9 @@ const EditPost = () => {
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="mt-1 block w-full px-4 py-2 rounded-md bg-[#121212] border border-gray-700 text-gray-300 focus:outline-none focus:border-[#61dafb] focus:ring-1 focus:ring-[#61dafb]"
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
               >
-                {categories.map(category => (
+                {categories.map((category) => (
                   <option key={category} value={category}>
                     {category}
                   </option>
@@ -128,48 +182,32 @@ const EditPost = () => {
             </div>
 
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-[#61dafb]">
-                Description
-              </label>
-              <textarea
-                id="description"
-                name="description"
-                value={formData.description}
-                onChange={handleChange}
-                rows={3}
-                required
-                className="mt-1 block w-full px-4 py-2 rounded-md bg-[#121212] border border-gray-700 text-gray-300 focus:outline-none focus:border-[#61dafb] focus:ring-1 focus:ring-[#61dafb]"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="content" className="block text-sm font-medium text-[#61dafb]">
-                Content
-              </label>
-              <textarea
-                id="content"
-                name="content"
-                value={formData.content}
-                onChange={handleChange}
-                rows={8}
-                required
-                className="mt-1 block w-full px-4 py-2 rounded-md bg-[#121212] border border-gray-700 text-gray-300 focus:outline-none focus:border-[#61dafb] focus:ring-1 focus:ring-[#61dafb]"
-              />
+              <label className="block text-sm font-medium text-gray-700">Content</label>
+              <div
+                ref={(ref) => {
+                  quillRef.current = ref;
+                  initializeQuill(ref);
+                }}
+                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none"
+              ></div>
             </div>
 
             <div className="flex justify-end space-x-3">
               <button
                 type="button"
-                onClick={() => navigate('/dashboard/posts')}
-                className="px-4 py-2 bg-[#121212] text-gray-300 border border-gray-700 rounded-md hover:bg-gray-700 transition-colors duration-200"
+                onClick={() => navigate("/blogs")}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
+                disabled={loading}
+                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
+                  loading ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                Save Changes
+                {loading ? "Updating..." : "Save Changes"}
               </button>
             </div>
           </form>
@@ -179,4 +217,4 @@ const EditPost = () => {
   );
 };
 
-export default EditPost; 
+export default EditPost;
