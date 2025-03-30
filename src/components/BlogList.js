@@ -88,9 +88,56 @@ const BlogList = () => {
     setSearchTerm(e.target.value);
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
+  const handleSearchSubmit = async (e) => {
+    if(searchTerm.trim() === ''){
+      return;
+    }
+    try {
+      setLoading(true);
+      setError('');
+      console.log(searchTerm);
+      const token = user ? localStorage.getItem('token') : null;
+      
+      const response = await axios.get('http://localhost:8080/api/posts/search', {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        params: {
+          query: searchTerm
+        }
+      });
+      
+      if (!response.data) {
+        throw new Error('No data received from server');
+      }
+  
+      const { blogs, total, showing } = response.data;
+      setPosts(blogs || []);
+      setTotal(total || 0);
+      setShowing(showing || 0);
+      setError('');
+    } catch (err) {
+      console.error('Error searching posts:', err);
+      setError(
+        err.response?.data?.message || 
+        err.message || 
+        'Failed to search posts. Please try again later.'
+      );
+      setPosts([]);
+    } finally {
+      setLoading(false);
+    }
   };
+  
+  useEffect(() => {
+    fetchRecommendedPosts();
+    if (searchTerm) {
+      handleSearchSubmit();
+    } else {
+      fetchPosts();
+    }
+  }, [category, user]);
 
   const handleCategoryChange = (e) => {
     fetchPosts(e.target.value);
