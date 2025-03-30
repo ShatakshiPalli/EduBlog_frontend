@@ -135,20 +135,55 @@ const EditPost = () => {
   };
 
   return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Edit Post</h2>
+    <>
+    <style>
+      {`
+        .ql-toolbar {
+          background-color: #333; /* Dark background */
+          color: #fff; /* Light text */
+        }
+
+        .ql-toolbar .ql-stroke {
+          stroke: #fff; /* Light icons */
+        }
+
+        .ql-toolbar .ql-fill {
+          fill: #fff; /* Light fill for icons */
+        }
+
+        .ql-toolbar .ql-picker .ql-expanded{
+          color: #fff; /* Light text for dropdowns */
+        }
+          .ql-picker-label{
+            color: #fff;
+          }
+        .ql-toolbar .ql-picker-label:hover,
+        .ql-toolbar button:hover {
+          background-color: rgb(51, 51, 51); /* Set the desired hover background color */
+          /*color: #61dafb !important; /* Optional: change the text/icon color on hover */
+        }
+        .ql-toolbar button:hover .ql-stroke {
+          stroke: rgb(51, 51, 51); /* Optional: change the icon stroke color on hover */
+        }
+        .ql-picker-options{
+          background-color: rgb(51, 51, 51) !important;
+          color: #fff;
+        }
+      `}
+    </style>
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="bg-[#1a1a1a] rounded-lg shadow-xl p-6 border border-gray-700">
+          <h2 className="text-3xl font-bold text-[#61dafb] mb-6">Create New Post</h2>
 
           {error && (
-            <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
-              <p className="text-red-700">{error}</p>
+            <div className="mb-6 p-4 bg-[#121212] border-l-4 border-red-500 text-red-500">
+              {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="title" className="block text-sm font-medium text-[#61dafb] mb-2">
                 Title
               </label>
               <input
@@ -158,12 +193,13 @@ const EditPost = () => {
                 value={formData.title}
                 onChange={handleChange}
                 required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="Enter post title"
+                className="w-full px-4 py-2 bg-[#121212] border border-gray-700 rounded-md text-gray-300 focus:outline-none focus:border-[#61dafb]"
               />
             </div>
 
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="category" className="block text-sm font-medium text-[#61dafb] mb-2">
                 Category
               </label>
               <select
@@ -171,10 +207,10 @@ const EditPost = () => {
                 name="category"
                 value={formData.category}
                 onChange={handleChange}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full px-4 py-2 bg-[#121212] border border-gray-700 rounded-md text-gray-300 focus:outline-none focus:border-[#61dafb]"
               >
                 {categories.map((category) => (
-                  <option key={category} value={category}>
+                  <option key={category} value={category} className="bg-[#121212]">
                     {category}
                   </option>
                 ))}
@@ -182,7 +218,7 @@ const EditPost = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700">Content</label>
+              <label className="block text-sm font-medium text-[#61dafb] mb-2">Content</label>
               <div
                 ref={(ref) => {
                   quillRef.current = ref;
@@ -196,24 +232,22 @@ const EditPost = () => {
               <button
                 type="button"
                 onClick={() => navigate("/blogs")}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="px-6 py-2 bg-[#121212] text-[#EF4444] border border-[#EF4444] rounded-md hover:bg-[#EF4444] hover:text-[#121212] transition-colors duration-200"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className={`inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 ${
-                  loading ? "opacity-50 cursor-not-allowed" : ""
-                }`}
+                className="px-6 py-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
               >
-                {loading ? "Updating..." : "Save Changes"}
+                {loading ? "Editing..." : "Edit Post"}
               </button>
             </div>
           </form>
-        </div>
       </div>
     </div>
+    </>
   );
 };
 

@@ -13,6 +13,10 @@ const BlogPost = () => {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!user) {
+      navigate('/login'); // Redirect if not authenticated
+      return;
+    }
     const fetchPost = async () => {
       try {
         const token = localStorage.getItem('token');
@@ -49,7 +53,7 @@ const BlogPost = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#61dafb]"></div>
       </div>
     );
   }
@@ -60,7 +64,7 @@ const BlogPost = () => {
         <p className="text-red-600">{error || 'Post not found'}</p>
         <Link
           to="/blogs"
-          className="text-indigo-600 hover:text-indigo-500 mt-4 inline-block"
+          className="text-[#61dafb] hover:text-[#61dafb]/80 mt-4 inline-block"
         >
           Back to Blogs
         </Link>
@@ -76,26 +80,31 @@ const BlogPost = () => {
   };
 
   return (
+    <>
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="bg-white shadow rounded-lg overflow-hidden">
-        <div className="p-6">
-          <div className="flex justify-between items-start">
-            <div>
-              <div className="flex items-center space-x-2">
-                <span className="text-sm font-medium text-indigo-600">
-                  {post.category}
-                </span>
-                <span className="text-sm text-gray-500">
-                  • {new Date(post.createdAt).toLocaleDateString()}
-                </span>
-              </div>
-              <h1 className="mt-2 text-3xl font-bold text-gray-900">
-                {post.title}
-              </h1>
-              <div className="mt-2 flex items-center">
-                <span className="text-sm text-gray-500">By {post.author.username}</span>
-              </div>
-            </div>
+      <article className="bg-[#1a1a1a] rounded-lg shadow-xl overflow-hidden border border-gray-700">
+        <div className="p-8">
+          <div className="flex items-center justify-between mb-6">
+            <span className="px-3 py-1 bg-[#121212] text-[#61dafb] border border-[#61dafb]/20 rounded-full text-sm font-medium">
+                {post.category}
+              </span>
+              <span className="text-sm text-gray-400">
+                {new Date(post.createdAt).toLocaleDateString()}
+              </span>
+          </div>
+          <style>
+            {`
+              .clr{
+                color: #61dafb;
+              }
+            `}
+          </style>
+          <h1 className="text-3xl font-bold text-white mb-4 clr">
+            {post.title}
+          </h1>
+          <div className="flex items-center mb-8">
+            <span className="text-gray-400">By {post.author?.username}</span>
+          </div>
 
             {isAuthor && (
               <div className="flex space-x-2">
@@ -113,11 +122,6 @@ const BlogPost = () => {
                 </button>
               </div>
             )}
-          </div>
-
-          {/* <div className="mt-6">
-            <p className="text-xl text-gray-500 leading-relaxed">{post.description}</p>
-          </div> */}
 
           {/* Render Markdown using marked */}
           <div
@@ -125,7 +129,7 @@ const BlogPost = () => {
             dangerouslySetInnerHTML={renderMarkdown(post.content || '')}
           ></div>
         </div>
-      </div>
+      </article>
 
       <div className="mt-6">
         <Link to="/blogs" className="text-indigo-600 hover:text-indigo-500 font-medium">
@@ -133,6 +137,7 @@ const BlogPost = () => {
         </Link>
       </div>
     </div>
+    </>
   );
 };
 
