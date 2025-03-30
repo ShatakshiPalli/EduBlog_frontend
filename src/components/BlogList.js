@@ -89,9 +89,6 @@ const BlogList = () => {
   };
 
   const handleSearchSubmit = async (e) => {
-    if(searchTerm.trim() === ''){
-      return;
-    }
     try {
       setLoading(true);
       setError('');
