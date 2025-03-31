@@ -101,7 +101,9 @@ const BlogList = () => {
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
         params: {
-          query: searchTerm
+          query: searchTerm,
+          page: 0,
+          size: 25
         }
       });
       

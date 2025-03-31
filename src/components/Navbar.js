@@ -61,6 +61,13 @@ const Navbar = () => {
                     >
                       My Posts
                     </Link>
+                    <Link
+                      to="/dashboard/LikedPosts"
+                      className="block px-4 py-2 text-gray-300 hover:bg-[#121212] hover:text-[#61dafb] transition-colors duration-200"
+                      onClick={() => setIsDropdownOpen(false)}
+                    >
+                      My Liked Posts
+                    </Link>
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-gray-300 hover:bg-[#121212] hover:text-[#61dafb] transition-colors duration-200"

@@ -11,6 +11,7 @@ import BlogPost from './components/BlogPost';
 import CreatePost from './components/CreatePost';
 import EditPost from './components/EditPost';
 import UserPosts from './components/UserPosts';
+import LikedPosts from './components/LikedPosts';
 import { AuthProvider } from './context/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 
@@ -49,6 +50,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <UserPosts />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/dashboard/LikedPosts"
+              element={
+                <PrivateRoute>
+                  <LikedPosts />
                 </PrivateRoute>
               }
             />

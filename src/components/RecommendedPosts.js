@@ -95,4 +95,4 @@ const RecommendedPosts = () => {
   );
 };
 
-export default RecommendedPosts; 
+export default RecommendedPosts;
