@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import axios from "axios";
 import Quill from "quill";
+import TurndownService from "turndown";
 import "quill/dist/quill.snow.css"; // Import Quill CSS
 import { marked } from "marked"; // Import marked for Markdown-to-HTML conversion
 
@@ -108,15 +109,19 @@ const EditPost = () => {
     setError("");
 
     try {
-      const editor = quillRef.current.__quill; // Access Quill instance
+const editor = quillRef.current.__quill; // Access the Quill instance
       const htmlContent = editor.root.innerHTML; // Extract HTML content from Quill
+      console.log(editor.getContents());
+      // Convert HTML content to Markdown using Turndown
+      const turndownService = new TurndownService();
+      const markdownContent = turndownService.turndown(htmlContent);
 
       const token = localStorage.getItem("token");
 
-      // Combine formData with HTML content
+      // Combine formData with Markdown content
       const postData = {
         ...formData,
-        content: htmlContent, // Send HTML content as a string
+        content: markdownContent, // Send Markdown content as a string
       };
 
       await axios.put(`http://localhost:8080/api/posts/${id}`, postData, {
