@@ -15,6 +15,9 @@ const BlogPost = () => {
   const [likedPostIds, setLikedPostIds] = useState([]);
   const [isLiked, setIsLiked] = useState(likedPostIds.includes(post?.id));
   const [readingPoints, setReadingPoints] = useState(0);
+  const [speechUtterance, setSpeechUtterance] = useState(null);
+  const [isPaused, setIsPaused] = useState(false);
+  const [lastSpokenLine, setLastSpokenLine] = useState(''); // To track the last spoken line
   
   
   useEffect(() => {
@@ -40,7 +43,7 @@ const BlogPost = () => {
     const fetchUserLikedPosts = async () => {
       try {
         const token = localStorage.getItem('token'); 
-        const response = await axios.get(`http://localhost:8080/api/users/${user.username}`, {
+        const response = await axios.get(`http://localhost:8080/api/users/liked-list/${user.username}`, {
           headers: { Authorization: `Bearer ${token}` }, 
         });
           if (response.status === 200) {
@@ -127,55 +130,131 @@ const BlogPost = () => {
     return { __html: marked(markdownContent) };
   };
 
-  const readMarkdown = (markdown) => {
-    const lines = markdown.split('\n');
-    let index = 0;
-
-    const speakNextLine = () => {
-      if (index >= lines.length){
-        setReadingPoints(3);
-        return; 
-      }
-
-      const line = lines[index].trim();
-      index++;
-
-      if (line === '') {
-        speakNextLine(); 
-        return;
-      }
-
-      
-      if (line.startsWith('#')) {
-        const headingText = line.replace(/^#+\s*/, ''); 
-        const speech = new SpeechSynthesisUtterance(headingText);
-        speech.pitch = 0.75; 
-        speech.onend = speakNextLine; 
-        window.speechSynthesis.speak(speech);
-      }
-      else if (line.startsWith('-') || line.startsWith('*') || line.match(/^\d+\./)) {
-        const listText = line.replace(/^[*-]\s*|^\d+\.\s*/, ''); // Remove list syntax
-        const speech = new SpeechSynthesisUtterance(`Point ${index}: ${listText}`);
-        speech.onend = speakNextLine; 
-        window.speechSynthesis.speak(speech);
-      }
-      else if (line.startsWith('![')) {
-        const imageAltText = line.match(/!\[([^\]]*)\]/)[1]; 
-        const speech = new SpeechSynthesisUtterance(`Please see the image: ${imageAltText}. I will pause for 5 seconds.`);
-        speech.onend = () => {
-          setTimeout(speakNextLine, 5000); 
+    // ... other state variables
+    
+    // ... other useEffect and functions
+  
+    const readMarkdown = (markdown) => {
+      // Clean the markdown by removing lines with only '=' characters
+      let cleanedMarkdown = markdown;
+      cleanedMarkdown.replace(/!\[.*?\]\(data:image\/[^)]+\)/g, ""); // Remove image links
+      cleanedMarkdown.replace(/\\*\\*.*?\\*\\*/g, "") // Remove bold text
+      cleanedMarkdown.replace(/\\*.*?\\*/g, "") // Remove italic text
+      cleanedMarkdown.replace(/~{1,2}.*?~{1,2}/g, "") // Remove strikethrough text
+      cleanedMarkdown.replace(/^#{1,6}.*?(\n|$)/gm, "") // Remove headers
+      cleanedMarkdown.replace(/_{1,2}.*?_{1,2}/g, "") // Remove underlined text
+      cleanedMarkdown.replace(/\\n{2,}/g, "\n") // Normalize multiple newlines
+      cleanedMarkdown.replace(/(?<=^[^\n]*\n)=+\s*$/gm, ""); // Remove lines that consist only of '=' characters
+      console.log(cleanedMarkdown);
+      const lines = cleanedMarkdown.split('\n');
+      let index = 0;
+  
+      const speakNextLine = () => {
+          if (index >= lines.length) {
+              setReadingPoints(3);
+              return; 
+          }
+  
+          const line = lines[index].trim();
+          index++;
+  
+          // Skip empty lines
+          if (line === '') {
+              speakNextLine(); 
+              return;
+          }
+  
+          // Check if the line has already been spoken
+          if (line === lastSpokenLine) {
+              speakNextLine();
+              return;
+          }
+          function isLineFilledWithEquals(line) {
+            return /^=+$/.test(line);
+        }
+          let speechText = '';
+          const speech = new SpeechSynthesisUtterance();
+          speech.pitch = 0.75; // Set pitch for headings
+  
+          if (line.startsWith('#')) {
+              // Heading
+              const headingText = line.replace(/^#+\s*/, ''); 
+              speechText = headingText;
+          } else if (line.startsWith('-') || line.startsWith('*')) {
+              // Unordered list
+              const listText = line.replace(/^[*-]\s*/, ''); // Remove list syntax
+              speechText = `Next point: ${listText}`;
+          } else if (line.match(/^\d+\./)) {
+              // Ordered list
+              const listText = line.replace(/^\d+\.\s*/, ''); // Remove list syntax
+              speechText = `Point ${line.match(/^\d+/)[0]}: ${listText}`;
+          } else if (line.startsWith('=') && isLineFilledWithEquals(line)) {
+            speechText = '';
+          } else if (line.startsWith('![')) {
+              // Image
+              const imageAltText = line.match(/!\[([^\]]*)\]/)[1]; 
+              speechText = `Please see the image: ${imageAltText}. I'm continue reading the article.`;
+              speech.onend = () => {
+                  setTimeout(speakNextLine, 5000); // Wait for 5 seconds before continuing
+                  return; // Exit the function to prevent further speaking
+              };
+          } else {
+              // Regular text
+              speechText = line;
+          }
+  
+          // Set the speech text and speak it
+          speech.text = speechText;
+          speech.onend = () => {
+              setLastSpokenLine(speechText); // Update last spoken line
+              if (!isPaused) {
+                  speakNextLine();
+              }
+          };
+  
+          // Store the current utterance to manage pause/resume
+          setSpeechUtterance(speech);
+          window.speechSynthesis.speak(speech);
         };
-        window.speechSynthesis.speak(speech);
-      } else {
-        const speech = new SpeechSynthesisUtterance(line);
-        speech.onend = speakNextLine; 
-        window.speechSynthesis.speak(speech);
+        
+        if (isPaused) {
+          window.speechSynthesis.resume();
+          setIsPaused(false);
+        } else {
+          speakNextLine();
+        }
+      };
+      
+      const handlePause = () => {
+        if (speechUtterance) {
+          window.speechSynthesis.pause();
+          setIsPaused(true);
+        }
+      };
+  
+    const handleResume = () => {
+      if (isPaused) {
+        window.speechSynthesis.resume();
+        setIsPaused(false);
       }
     };
-
-    speakNextLine(); 
-  };
-
+    
+    const handlePlayAgain = () => {
+      if (speechUtterance) {
+        window.speechSynthesis.cancel(); // Stop any ongoing speech
+      }
+      setLastSpokenLine(''); // Reset last spoken line
+      readMarkdown(post.content || ' ');
+    };
+    window.addEventListener('beforeunload', () => {
+      window.speechSynthesis.cancel(); // Stop any ongoing speech
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+          window.speechSynthesis.cancel(); // Stop any ongoing speech
+      }
+    });
+    
   return (
     <>
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -212,42 +291,31 @@ const BlogPost = () => {
                 <span className="mr-2">
                     {isLiked ? '\u{1F44D}' : ''}
                 </span>
-                <span>{isLiked ? '' : 'like it'}</span>
+                <span>{isLiked ? '' : 'like'}</span>
                 <span className="ml-2">{post.likes}</span>
             </button>
             <button
-                onClick={() => {
-                  if(readingPoints === 0){
-                    readMarkdown(post.content || '');
-                    setReadingPoints(1);
-                  }else if(readingPoints === 1){
-                    
-                    setReadingPoints(2);
-                  }else if(readingPoints === 2){
-                    
-                    setReadingPoints(3);
-                  }else{
-                    setReadingPoints(1);
-                    readMarkdown(post.content || ' ');
-                  }
-                }
-                } // Call the readMarkdown function with post content
-                className="px-6 py-2 m-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
-            >
-                {
-                    readingPoints === 0 ? "read" : (readingPoints === 1 ? "pause" : (readingPoints === 2 ? "continue" : "read again") )
-                }
-            </button>
-            <button
-                onClick={() => {
-                  
-                  readMarkdown(post.content || ' ');
-                }
-                } // Call the readMarkdown function with post content
-                className="px-6 py-2 m-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
-            >
-                read all again
-            </button>
+        onClick={() => {
+          if (readingPoints === 0) {
+            readMarkdown(post.content || '');
+            setReadingPoints(1);
+          } else if (readingPoints === 1) {
+            handlePause();
+            setReadingPoints(2);
+          } else if (readingPoints === 2) {
+            handleResume();
+            setReadingPoints(1);
+          } else {
+            handlePlayAgain();
+            setReadingPoints(1);
+          }
+        }}
+        className="px-6 py-2 m-2 bg-[#121212] text-[#61dafb] border border-[#61dafb] rounded-md hover:bg-[#61dafb] hover:text-[#121212] transition-colors duration-200"
+      >
+        {
+          readingPoints === 0 ? "read" : (readingPoints === 1 ? "pause" : (readingPoints === 2 ? "resume" : "play again"))
+        }
+      </button>
             {isAuthor && (
               <div className="flex space-x-2">
                 <Link
