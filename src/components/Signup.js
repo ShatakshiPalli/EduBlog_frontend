@@ -22,11 +22,11 @@ const Signup = () => {
     }));
   };
 
-  const validateUsername = (username) => /^[a-zA-Z0-9_]{3,16}$/.test(username); // 3-16 characters, alphanumeric or underscores.
+  const validateUsername = (username) => /^[a-zA-Z0-9_]{3,16}$/.test(username);
   const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const validatePassword = (password) =>
     password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password) && /[\W]/.test(password);
-  
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -48,7 +48,7 @@ const Signup = () => {
       );
       return;
     }
-    
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
@@ -62,6 +62,26 @@ const Signup = () => {
       setError(err.response?.data?.message || 'An error occurred during registration');
     }
   };
+
+  // Password strength logic
+  const password = formData.password;
+  const conditions = {
+    length: password.length >= 8,
+    upper: /[A-Z]/.test(password),
+    lower: /[a-z]/.test(password),
+    number: /\d/.test(password),
+    symbol: /[\W_]/.test(password)
+  };
+
+  const strength =
+    Object.values(conditions).filter(Boolean).length;
+
+  const strengthText =
+    strength === 0 ? '' :
+    strength <= 2 ? 'Weak' :
+    strength === 3 ? 'Moderate' :
+    strength === 4 ? 'Strong' :
+    'Very Strong';
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#121212] py-12 px-4 sm:px-6 lg:px-8">
@@ -120,6 +140,36 @@ const Signup = () => {
                 value={formData.password}
                 onChange={handleChange}
               />
+
+              {/* Strength Meter */}
+              <div className="mt-3">
+                {password && (
+                  <>
+                    <div
+                      className={`w-full text-center text-white font-bold py-2 rounded ${
+                        strength >= 5
+                          ? 'bg-green-500'
+                          : strength >= 4
+                          ? 'bg-yellow-500'
+                          : strength >= 3
+                          ? 'bg-orange-500'
+                          : 'bg-red-500'
+                      }`}
+                    >
+                      {strengthText}
+                    </div>
+                    <p className="mt-2 text-center text-xs text-gray-400">
+                      {password.length} characters containing:
+                    </p>
+                    <div className="flex justify-around text-sm mt-1 text-white">
+                      <span className={conditions.lower ? 'text-green-400' : 'text-red-400'}>Lower case</span>
+                      <span className={conditions.upper ? 'text-green-400' : 'text-red-400'}>Upper case</span>
+                      <span className={conditions.number ? 'text-green-400' : 'text-red-400'}>Numbers</span>
+                      <span className={conditions.symbol ? 'text-green-400' : 'text-red-400'}>Symbols</span>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-300 mb-2">
@@ -164,4 +214,4 @@ const Signup = () => {
   );
 };
 
-export default Signup; 
+export default Signup;
