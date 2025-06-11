@@ -63,7 +63,6 @@ const Signup = () => {
     }
   };
 
-  // Password strength logic
   const password = formData.password;
   const conditions = {
     length: password.length >= 8,
@@ -73,15 +72,15 @@ const Signup = () => {
     symbol: /[\W_]/.test(password)
   };
 
-  const strength =
-    Object.values(conditions).filter(Boolean).length;
+  const strength = Object.values(conditions).filter(Boolean).length;
 
-  const strengthText =
-    strength === 0 ? '' :
-    strength <= 2 ? 'Weak' :
-    strength === 3 ? 'Moderate' :
-    strength === 4 ? 'Strong' :
-    'Very Strong';
+  const getLineColor = (score) => {
+    if (score <= 1) return 'bg-red-500';
+    if (score === 2) return 'bg-orange-400';
+    if (score === 3) return 'bg-yellow-400';
+    if (score >= 4) return 'bg-green-500';
+    return 'bg-gray-300';
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#121212] py-12 px-4 sm:px-6 lg:px-8">
@@ -141,32 +140,23 @@ const Signup = () => {
                 onChange={handleChange}
               />
 
-              {/* Strength Meter */}
+              {/* Password Strength Indicator (4 bars) */}
               <div className="mt-3">
                 {password && (
                   <>
-                    <div
-                      className={`w-full text-center text-white font-bold py-2 rounded ${
-                        strength >= 5
-                          ? 'bg-green-500'
-                          : strength >= 4
-                          ? 'bg-yellow-500'
-                          : strength >= 3
-                          ? 'bg-orange-500'
-                          : 'bg-red-500'
-                      }`}
-                    >
-                      {strengthText}
+                    <div className="flex space-x-1">
+                      {[1, 2, 3, 4].map((index) => (
+                        <div
+                          key={index}
+                          className={`h-1 flex-1 rounded-sm transition-all duration-300 ${
+                            strength >= index ? getLineColor(strength) : 'bg-gray-300'
+                          }`}
+                        ></div>
+                      ))}
                     </div>
-                    <p className="mt-2 text-center text-xs text-gray-400">
-                      {password.length} characters containing:
+                    <p className="text-sm text-gray-400 mt-1">
+                      Use 8 or more characters with a mix of letters, numbers & symbols.
                     </p>
-                    <div className="flex justify-around text-sm mt-1 text-white">
-                      <span className={conditions.lower ? 'text-green-400' : 'text-red-400'}>Lower case</span>
-                      <span className={conditions.upper ? 'text-green-400' : 'text-red-400'}>Upper case</span>
-                      <span className={conditions.number ? 'text-green-400' : 'text-red-400'}>Numbers</span>
-                      <span className={conditions.symbol ? 'text-green-400' : 'text-red-400'}>Symbols</span>
-                    </div>
                   </>
                 )}
               </div>
