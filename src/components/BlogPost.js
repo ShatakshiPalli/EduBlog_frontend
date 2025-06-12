@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, Await } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
 import RecommendedPosts from './RecommendedPosts';
 import { marked } from 'marked';
+import { AwardIcon } from 'lucide-react';
 
 const BlogPost = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [post, setPost] = useState(null);
+  const [post, setPost] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [likedPostIds, setLikedPostIds] = useState([]);
-  const [isLiked, setIsLiked] = useState(likedPostIds.includes(post?.id));
+  const [isLiked, setIsLiked] = useState(false);
   const [readingPoints, setReadingPoints] = useState(0);
   const [speechUtterance, setSpeechUtterance] = useState(null);
   const [isPaused, setIsPaused] = useState(false);
@@ -32,23 +32,23 @@ const BlogPost = () => {
         const response = await axios.get(`http://localhost:8080/api/posts/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setPost(response.data);
-        setLoading(false);
+        return response.data;
       } catch (err) {
         setError('Failed to fetch post');
         setLoading(false);
       }
     };
     
-    const fetchUserLikedPosts = async () => {
+    const fetchUserLikedPosts = async (post) => {
       try {
         const token = localStorage.getItem('token'); 
         const response = await axios.get(`http://localhost:8080/api/users/liked-list/${user.username}`, {
           headers: { Authorization: `Bearer ${token}` }, 
         });
           if (response.status === 200) {
-            setLikedPostIds(response.data.likedPostIds || []); 
-            setIsLiked(likedPostIds.includes(post?.id));
+            setIsLiked(response.data.likedPostIds.indexOf(post.id) > -1);
+            console.log(isLiked);
+            setLoading(false);
             } else {
               console.error('Failed to fetch user liked posts:', response.statusText);
             }
@@ -56,32 +56,65 @@ const BlogPost = () => {
             console.error('Failed to fetch user liked posts', err);
           }
   };
-    
-    fetchUserLikedPosts();
-    fetchPost();
+    const serialise = async () => {
+      let p = await fetchPost();
+      setPost(p);
+      await fetchUserLikedPosts(p);
+    }
+    serialise();
   }, [id]);
-
-  const handleLike = async () => {
+  const updateUserLikes = async () => {
     try {
         const token = localStorage.getItem('token');
-        await axios.post(`http://localhost:8080/api/posts/${post.id}/like`, {}, {
-            headers: { Authorization: `Bearer ${token}` },
+        let res = await axios.post(`http://localhost:8080/api/users/liked-list/`, {
+          "post_id": post.id, 
+          "username": user.username
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
         });
-        setPost({ ...post, likes: post.likes + 1 }); 
-        setIsLiked(true);
+        if(res.data.isLiked && res.data[user.username]){
+          setPost({ ...post, likes: post.likes + 1 });
+          setIsLiked(true);
+        }
       } catch (err) {
         console.error('Failed to like post', err);
       }
-    };
-    
+  }
+  const handleLike = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        let y = await axios.post(`http://localhost:8080/api/posts/${post.id}/like`, {}, {
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        await updateUserLikes();
+      } catch (err) {
+        console.error('Failed to like post', err);
+      }
+  };
+      const updateUserDislike = async () => {
+    try {
+        const token = localStorage.getItem('token');
+        let res = await axios.post(`http://localhost:8080/api/users/liked-list/dislike`, {
+          "post_id": post.id, 
+          "username": user.username
+          }, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if(res.data.isDisliked && res.data[user.username]){
+          setPost({ ...post, likes: post.likes - 1 });
+          setIsLiked(false);
+        }
+      } catch (err) {
+        console.error('Failed to like post', err);
+      }
+  }
     const handleUnlike = async () => {
       try {
         const token = localStorage.getItem('token');
         await axios.delete(`http://localhost:8080/api/posts/${post.id}/like`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        setPost({ ...post, likes: post.likes - 1 }); 
-        setIsLiked(false);
+        await updateUserDislike();
       } catch (err) {
         console.error('Failed to unlike post', err);
       }
